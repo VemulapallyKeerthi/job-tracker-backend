@@ -1,5 +1,6 @@
 from playwright.sync_api import sync_playwright
 import requests
+import time
 
 API_URL = "https://job-tracker-backend-whae.onrender.com/jobs"
 
@@ -11,17 +12,44 @@ def scrape_indeed():
     print("Scraper started")
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
+        browser = p.chromium.launch(headless=False)  # run visibly
+        page = browser.new_page(
+            user_agent=(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/122.0.0.0 Safari/537.36"
+            )
+        )
 
-        # Load all jobs in the US
-        page.goto("https://www.indeed.com/jobs?q=&l=United+States")
+        url = "https://www.indeed.com/jobs?q=&l=United+States"
+        page.goto(url)
 
-        # Wait for job cards to load
-        page.wait_for_selector("div.job_seen_beacon")
+        print("Page loaded:", page.title())
 
-        cards = page.query_selector_all("div.job_seen_beacon")
-        print("Found job cards:", len(cards))
+        # Give Indeed time to load dynamic content
+        time.sleep(5)
+
+        # Try multiple selectors (Indeed uses different layouts)
+        selectors = [
+            "div.job_seen_beacon",
+            "td.resultContent",
+            "div.slider_container",
+        ]
+
+        cards = []
+        for sel in selectors:
+            found = page.query_selector_all(sel)
+            if found:
+                cards = found
+                print(f"Using selector: {sel} — found {len(cards)} jobs")
+                break
+
+        if not cards:
+            print("No job cards found. Indeed may be blocking the scraper.")
+            print("Page HTML preview:")
+            print(page.content()[:1000])
+            browser.close()
+            return
 
         for card in cards:
             title_el = card.query_selector("h2 span")
