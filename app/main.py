@@ -4,12 +4,19 @@ from app.routers import jobs
 from app.database import engine
 from app.models import job
 
-app = FastAPI()
+app = FastAPI(
+    title="Job Tracker API",
+    description="Scrapes, stores, and analyzes tech job listings",
+    version="1.0.0",
+)
 
-# ✅ Add CORS middleware immediately after creating the app
+# CORS — restrict origins in production via env var
+import os
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],        # allow frontend to call backend
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -21,12 +28,11 @@ def root():
 
 @app.head("/")
 def root_head():
-    return {"message": "Job Tracker API is running"}
+    return {}
 
-# Routers come AFTER CORS
+# Routers
 app.include_router(jobs.router)
 
-# Database setup
+# Auto-create all tables (including new ML columns)
 job.Base.metadata.create_all(bind=engine)
-
 

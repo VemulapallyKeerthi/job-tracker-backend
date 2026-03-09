@@ -1,0 +1,48 @@
+version: "3.9"
+
+services:
+
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: keerthi
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: jobtracker
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # ── FastAPI Backend ─────────────────────────────────────────────────────────
+  backend:
+    build: .
+    restart: always
+    ports:
+      - "8001:8001"
+    environment:
+      DATABASE_URL: postgresql://keerthi:secret@db:5432/jobtracker
+      ALLOWED_ORIGINS: "http://localhost:3000"
+      HEADLESS: "true"
+    depends_on:
+      - db
+    volumes:
+      - .:/app
+
+  # ── Scraper (runs once then exits) ─────────────────────────────────────────
+  scraper:
+    build: .
+    environment:
+      API_URL: http://backend:8001/jobs
+      SEARCH_QUERIES: "data scientist,machine learning engineer,data engineer,software engineer,backend engineer,ML engineer,data analyst,AI engineer,research scientist"
+      SEARCH_LOCATIONS: "Remote,New York NY,San Francisco CA,Seattle WA,Austin TX"
+      HEADLESS: "true"
+    depends_on:
+      - backend
+    command: python scrapers/scraper.py
+    profiles:
+      - scrape    # docker compose --profile scrape up scraper
+
+volumes:
+  postgres_data:

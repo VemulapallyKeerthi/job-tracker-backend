@@ -1,0 +1,26 @@
+# render.yaml — Render deployment config
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: job-tracker-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    region: oregon          # free tier available in oregon
+    plan: free
+
+    # Health check — Render uses this to know the service is up
+    healthCheckPath: /
+
+    envVars:
+      - key: DATABASE_URL
+        sync: false         # set manually in Render dashboard (keep secret)
+
+      - key: ALLOWED_ORIGINS
+        sync: false         # set to your frontend URL in dashboard
+
+      - key: HEADLESS
+        value: "true"
+
+      - key: PORT
+        value: "8001"
