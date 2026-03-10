@@ -2,7 +2,7 @@ import os
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -65,8 +65,8 @@ app = FastAPI(
 allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -82,14 +82,10 @@ def root_head():
     return {}
 
 @app.post("/scrape", tags=["Scraper"])
-def trigger_scrape_manually():
-    """Manually trigger the scraper on demand."""
-    try:
-        from scrapers.scraper import run_all
-        run_all()
-        return {"message": "Scraper completed successfully"}
-    except Exception as e:
-        return {"error": str(e)}
+def trigger_scrape_manually(background_tasks: BackgroundTasks):
+    """Manually trigger the scraper in background — returns immediately."""
+    background_tasks.add_task(run_scraper)
+    return {"message": "Scraper started in background"}
 
 @app.get("/scraper/status", tags=["Scraper"])
 def scraper_status():
