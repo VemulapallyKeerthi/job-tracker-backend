@@ -1,0 +1,37 @@
+name: Daily Job Scraper
+
+on:
+  schedule:
+    - cron: '0 10 * * *'  # Every day at 10:00 AM UTC (6AM ET / 3AM PT)
+  workflow_dispatch:       # Allow manual trigger from GitHub Actions UI
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Wake up Render service
+        run: |
+          echo "Pinging Render to wake up..."
+          curl -s https://job-tracker-backend-c7a9.onrender.com/ || true
+          sleep 30  # Wait 30 seconds for Render to fully wake up
+
+      - name: Trigger scraper
+        run: |
+          echo "Triggering scraper..."
+          response=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            https://job-tracker-backend-c7a9.onrender.com/scrape \
+            --max-time 300)
+          echo "Response status: $response"
+          if [ "$response" != "200" ]; then
+            echo "❌ Scraper returned status $response"
+            exit 1
+          fi
+          echo "✅ Scraper triggered successfully"
+
+      - name: Verify jobs updated
+        run: |
+          echo "Checking jobs endpoint..."
+          curl -s https://job-tracker-backend-c7a9.onrender.com/jobs | head -c 200
+          echo ""
+          echo "✅ Jobs endpoint responding"
