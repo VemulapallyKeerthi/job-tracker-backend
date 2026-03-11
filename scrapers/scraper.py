@@ -54,9 +54,32 @@ USER_AGENT = (
 _seen: set[tuple[str, str]] = set()
 
 
+# ── US Location Filter ────────────────────────────────────────────────────────
+US_KEYWORDS = {
+    "united states", "usa", "u.s.", "remote", "us remote",
+    "new york", "san francisco", "seattle", "austin", "boston",
+    "chicago", "los angeles", "denver", "atlanta", "dallas",
+    "washington", "california", "texas", "new jersey", " ny",
+    " ca", " wa", " tx", " dc", " ma", " il", " co", " ga",
+    " fl", " nc", " va", " or", " az", " mn", " oh", " pa",
+}
+
+def is_us_location(location: str) -> bool:
+    """Return True if location appears to be US-based or Remote."""
+    if not location:
+        return True  # no location = assume remote/US
+    loc = location.lower()
+    return any(kw in loc for kw in US_KEYWORDS)
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 def send_to_backend(job: dict) -> bool:
     """POST a job dict to the backend with retry + exponential backoff."""
+    # ── US filter ──
+    if not is_us_location(job.get("location", "")):
+        log.debug(f"  ↷ Skipping non-US job: {job['title']} @ {job['location']}")
+        return False
+
     key = (job["title"].lower(), job["company"].lower())
     if key in _seen:
         log.debug(f"  ↷ Skipping duplicate: {job['title']} @ {job['company']}")
@@ -467,7 +490,6 @@ def run_all():
                         log.info(f"  {name}: skipping (location-independent, already scraped)")
                         continue
                     try:
-                        # Pass current query to each scraper
                         count = scraper_fn(browser, location, query)
                         totals[name] += count
                     except Exception as e:
