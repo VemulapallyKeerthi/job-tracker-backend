@@ -21,3 +21,4 @@ apscheduler==3.10.4
 
 # Utilities
 python-dotenv==1.0.1
+PyJWT==2.8.0
