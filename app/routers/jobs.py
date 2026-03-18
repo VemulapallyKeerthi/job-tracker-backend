@@ -282,3 +282,13 @@ def mark_as_rejected(
     user_id : Optional[str] = Depends(get_current_user),
 ):
     return _transition(job_id, JobStatus.rejected, db, user_id)
+
+
+@router.get("/debug/auth")
+def debug_auth(user_id: Optional[str] = Depends(get_current_user), authorization: Optional[str] = Header(None)):
+    return {
+        "user_id": user_id,
+        "has_token": authorization is not None,
+        "token_prefix": authorization[:20] if authorization else None,
+        "jwt_secret_set": SUPABASE_JWT_SECRET is not None,
+    }
