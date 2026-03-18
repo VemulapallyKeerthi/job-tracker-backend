@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import Optional
 import jwt
+from jwt import PyJWKClient
 import os
 
 from app.database import SessionLocal
@@ -14,6 +15,7 @@ router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
 SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
 SUPABASE_URL        = os.getenv("SUPABASE_URL")
+
 
 # ── DB dependency ─────────────────────────────────────────────────────────────
 def get_db():
@@ -30,6 +32,23 @@ def get_current_user(authorization: Optional[str] = Header(None)) -> Optional[st
     if not authorization or not authorization.startswith("Bearer "):
         return None
     token = authorization.split(" ")[1]
+
+    # Try JWKS first (for Google OAuth / ECC tokens)
+    try:
+        jwks_url = f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json"
+        jwks_client = PyJWKClient(jwks_url)
+        signing_key = jwks_client.get_signing_key_from_jwt(token)
+        payload = jwt.decode(
+            token,
+            signing_key.key,
+            algorithms=["RS256", "ES256"],
+            options={"verify_aud": False},
+        )
+        return payload.get("sub")
+    except Exception:
+        pass
+
+    # Fallback to legacy HS256 secret
     try:
         payload = jwt.decode(
             token,
@@ -37,7 +56,7 @@ def get_current_user(authorization: Optional[str] = Header(None)) -> Optional[st
             algorithms=["HS256"],
             options={"verify_aud": False},
         )
-        return payload.get("sub")  # user UUID
+        return payload.get("sub")
     except Exception:
         return None
 
@@ -118,6 +137,21 @@ def get_jobs(
         query = query.filter(Job.status == status)
 
     return jobs
+
+
+# ── GET /jobs/debug/auth ──────────────────────────────────────────────────────
+@router.get("/debug/auth")
+def debug_auth(
+    user_id       : Optional[str] = Depends(get_current_user),
+    authorization : Optional[str] = Header(None),
+):
+    return {
+        "user_id":        user_id,
+        "has_token":      authorization is not None,
+        "token_prefix":   authorization[:30] if authorization else None,
+        "jwt_secret_set": SUPABASE_JWT_SECRET is not None,
+        "supabase_url":   SUPABASE_URL,
+    }
 
 
 # ── GET /jobs/{job_id} ────────────────────────────────────────────────────────
@@ -282,13 +316,3 @@ def mark_as_rejected(
     user_id : Optional[str] = Depends(get_current_user),
 ):
     return _transition(job_id, JobStatus.rejected, db, user_id)
-
-
-@router.get("/debug/auth")
-def debug_auth(user_id: Optional[str] = Depends(get_current_user), authorization: Optional[str] = Header(None)):
-    return {
-        "user_id": user_id,
-        "has_token": authorization is not None,
-        "token_prefix": authorization[:20] if authorization else None,
-        "jwt_secret_set": SUPABASE_JWT_SECRET is not None,
-    }
