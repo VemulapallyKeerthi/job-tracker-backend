@@ -13,13 +13,13 @@ jobs:
       - name: Wake up Render service
         run: |
           echo "Pinging Render to wake up..."
-          curl -s https://job-tracker-backend-c7a9.onrender.com/ || true
+          curl -s https://job-tracker-backend-hrdi.onrender.com/ || true
           sleep 30  # Wait 30 seconds for Render to fully wake up
 
       - name: Trigger scraper
         run: |
           echo "Triggering scraper..."
-          curl -s -X POST https://job-tracker-backend-c7a9.onrender.com/scrape
+          curl -s -X POST https://job-tracker-backend-hrdi.onrender.com/scrape
           echo ""
           echo "✅ Scraper triggered in background — running on Render"
           sleep 10  # Brief wait to confirm request was accepted
