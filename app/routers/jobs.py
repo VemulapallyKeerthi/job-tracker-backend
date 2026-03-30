@@ -28,12 +28,11 @@ def get_db():
 
 # ── Auth dependency ───────────────────────────────────────────────────────────
 def get_current_user(authorization: Optional[str] = Header(None)) -> Optional[str]:
-    """Extract user_id from Supabase JWT token. Returns None if no token."""
     if not authorization or not authorization.startswith("Bearer "):
         return None
     token = authorization.split(" ")[1]
 
-    # Try JWKS first (for Google OAuth / ECC tokens)
+    # Try JWKS first
     try:
         jwks_url = f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json"
         jwks_client = PyJWKClient(jwks_url)
@@ -44,11 +43,13 @@ def get_current_user(authorization: Optional[str] = Header(None)) -> Optional[st
             algorithms=["RS256", "ES256"],
             options={"verify_aud": False},
         )
-        return payload.get("sub")
-    except Exception:
-        pass
+        user_id = payload.get("sub")
+        print(f"✅ JWKS auth success: {user_id}", flush=True)
+        return user_id
+    except Exception as e:
+        print(f"❌ JWKS auth failed: {e}", flush=True)
 
-    # Fallback to legacy HS256 secret
+    # Fallback to HS256
     try:
         payload = jwt.decode(
             token,
@@ -56,8 +57,11 @@ def get_current_user(authorization: Optional[str] = Header(None)) -> Optional[st
             algorithms=["HS256"],
             options={"verify_aud": False},
         )
-        return payload.get("sub")
-    except Exception:
+        user_id = payload.get("sub")
+        print(f"✅ HS256 auth success: {user_id}", flush=True)
+        return user_id
+    except Exception as e:
+        print(f"❌ HS256 auth failed: {e}", flush=True)
         return None
 
 
