@@ -17,12 +17,15 @@ jobs:
           sleep 30  # Wait 30 seconds for Render to fully wake up
 
       - name: Trigger scraper
+        env:
+          SEARCH_QUERIES: "data scientist,machine learning engineer,data engineer,ML engineer,AI engineer,deep learning engineer,NLP engineer,computer vision engineer,data analyst,research scientist,applied scientist,quantitative analyst,business intelligence analyst,data science manager,MLOps engineer"
+          SEARCH_LOCATIONS: "Remote,New York NY,San Francisco CA,Seattle WA,Austin TX,Boston MA,Chicago IL"
         run: |
           echo "Triggering scraper..."
           curl -s -X POST https://job-tracker-backend-hrdi.onrender.com/scrape
           echo ""
           echo "✅ Scraper triggered in background — running on Render"
-          sleep 10  # Brief wait to confirm request was accepted
+          sleep 10
 
       - name: Done
         run: |
